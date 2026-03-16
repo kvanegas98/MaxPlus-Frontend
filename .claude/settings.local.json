@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(xargs grep:*)",
+      "Bash(del \"c:\\\\Sistemas\\\\MaxPlus-Frontend\\\\.firebaserc\")",
+      "Bash(del \"c:\\\\Sistemas\\\\MaxPlus-Frontend\\\\firebase.json\")",
+      "Bash(node -e \"require\\(''''sharp''''\\)\")",
+      "Bash(node generate-icons.mjs)"
+    ]
+  }
+}
