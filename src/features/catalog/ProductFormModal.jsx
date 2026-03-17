@@ -22,6 +22,7 @@ import { cn } from '../../lib/utils';
 import { useAuthContext } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { serviceTypeService } from '../../services/serviceTypeService';
+import { categoriasService } from '../../services/categoriasService';
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 const PLATAFORMAS = ['IPTV', 'FlujoTV', 'Netflix', 'Streaming'];
@@ -42,7 +43,7 @@ const schema = z.object({
     .string()
     .min(1, 'Requerido')
     .refine((v) => Number.isInteger(Number(v)) && parseInt(v) > 0, 'Entero > 0'),
-  category: z.enum(['Paid', 'Demo'], { message: 'Selecciona una categoría' }),
+  categoriaId: z.string().min(1, 'Selecciona una categoría'),
   isActive: z.boolean(),
   imageUrl: z.string().optional().or(z.literal('')),
 });
@@ -56,7 +57,7 @@ function buildDefaults(data) {
     price:         data?.price         != null ? String(data.price)         : '',
     purchasePrice: data?.purchasePrice != null ? String(data.purchasePrice) : '',
     durationDays:  data?.durationDays  != null ? String(data.durationDays)  : '',
-    category:      data?.category      ?? 'Paid',
+    categoriaId:   data?.categoriaId   ?? '',
     isActive:      data?.isActive      ?? true,
     imageUrl:      data?.imageUrl      ?? '',
   };
@@ -75,9 +76,9 @@ function FieldError({ message }) {
   if (!message) return null;
   return (
     <motion.p
-      initial={{ opacity: 0, height: 0 }}
-      animate={{ opacity: 1, height: 'auto' }}
-      exit={{ opacity: 0, height: 0 }}
+      initial={{ opacity: 0, blockSize: 0 }}
+      animate={{ opacity: 1, blockSize: 'auto' }}
+      exit={{ opacity: 0, blockSize: 0 }}
       className="flex items-center gap-1.5 text-xs text-red-500 mt-1.5"
     >
       <AlertCircle size={11} className="shrink-0" />
@@ -247,6 +248,8 @@ export function ProductFormModal({ isOpen, onClose, initialData, onSaved }) {
   const [selectedFile,  setSelectedFile]  = useState(null);
   const [apiError,      setApiError]      = useState('');
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [categorias,       setCategorias]       = useState([]);
+  const [categoriasLoading, setCategoriasLoading] = useState(false);
 
   const {
     register,
@@ -260,12 +263,17 @@ export function ProductFormModal({ isOpen, onClose, initialData, onSaved }) {
     defaultValues: buildDefaults(initialData),
   });
 
-  // Reset al abrir el modal
+  // Reset al abrir el modal + cargar categorías
   useEffect(() => {
     if (!isOpen) return;
     setSelectedFile(null);
     setApiError('');
     setSubmitSuccess(false);
+    setCategoriasLoading(true);
+    categoriasService.getActivas()
+      .then((data) => setCategorias(data ?? []))
+      .catch(() => setCategorias([]))
+      .finally(() => setCategoriasLoading(false));
     if (initialData?.id) {
       serviceTypeService.getById(initialData.id, token)
         .then((s) => reset(buildDefaults(s)))
@@ -300,8 +308,9 @@ export function ProductFormModal({ isOpen, onClose, initialData, onSaved }) {
         price:         parseFloat(data.price),
         purchasePrice: parseFloat(data.purchasePrice),
         durationDays:  parseInt(data.durationDays, 10),
-        category:      data.category,
+        categoriaId:   data.categoriaId,
         imageUrl:      finalImageUrl,
+        isActive:      data.isActive,
       };
 
       // 2. Crear o actualizar
@@ -336,24 +345,24 @@ export function ProductFormModal({ isOpen, onClose, initialData, onSaved }) {
           <motion.div
             variants={panelVariants} initial="hidden" animate="visible" exit="exit"
             className={cn(
-              'relative z-10 w-full bg-white shadow-2xl overflow-hidden',
+              'relative z-10 w-full bg-white dark:bg-slate-800 shadow-2xl overflow-hidden',
               'rounded-t-3xl sm:rounded-2xl max-h-[92dvh] sm:max-h-[90vh]',
               'sm:max-w-2xl lg:max-w-3xl flex flex-col',
             )}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-slate-100 shrink-0">
-              <div className="absolute top-2 left-1/2 -translate-x-1/2 w-10 h-1 bg-slate-200 rounded-full sm:hidden" />
+            <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-slate-100 dark:border-slate-700 shrink-0">
+              <div className="absolute top-2 left-1/2 -translate-x-1/2 w-10 h-1 bg-slate-200 dark:bg-slate-600 rounded-full sm:hidden" />
               <div className="flex items-center gap-3">
-                <div className={cn('flex items-center justify-center w-9 h-9 rounded-xl', isEditing ? 'bg-amber-50' : 'bg-violet-50')}>
-                  <Package size={18} className={isEditing ? 'text-amber-600' : 'text-violet-600'} />
+                <div className={cn('flex items-center justify-center w-9 h-9 rounded-xl', isEditing ? 'bg-amber-50 dark:bg-amber-900/30' : 'bg-violet-50 dark:bg-violet-900/30')}>
+                  <Package size={18} className={isEditing ? 'text-amber-600' : 'text-violet-500'} />
                 </div>
                 <div>
-                  <h2 className="text-base font-bold text-slate-900">{isEditing ? 'Editar Servicio' : 'Nuevo Servicio'}</h2>
-                  <p className="text-xs text-slate-400">{isEditing ? 'Modifica los datos del servicio IPTV' : 'Completa la información del servicio IPTV'}</p>
+                  <h2 className="text-base font-bold text-slate-900 dark:text-white">{isEditing ? 'Editar Servicio' : 'Nuevo Servicio'}</h2>
+                  <p className="text-xs text-slate-400 dark:text-slate-500">{isEditing ? 'Modifica los datos del servicio IPTV' : 'Completa la información del servicio IPTV'}</p>
                 </div>
               </div>
-              <button onClick={onClose} className="flex items-center justify-center w-8 h-8 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors">
+              <button onClick={onClose} className="flex items-center justify-center w-8 h-8 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-200 transition-colors">
                 <X size={18} />
               </button>
             </div>
@@ -380,15 +389,15 @@ export function ProductFormModal({ isOpen, onClose, initialData, onSaved }) {
                     {...register('imageUrl')}
                     type="text"
                     placeholder="…o pega una URL de imagen"
-                    className="w-full h-9 pl-3 pr-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
+                    className="w-full h-9 pl-3 pr-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
                   />
                   <Controller
                     name="isActive" control={control}
                     render={({ field }) => (
                       <ToggleSwitch
                         checked={field.value} onChange={field.onChange}
-                        label="Servicio activo"
-                        description="Visible en el menú público"
+                        label="Visible en catálogo"
+                        description="Activo y disponible para asignar"
                       />
                     )}
                   />
@@ -402,8 +411,8 @@ export function ProductFormModal({ isOpen, onClose, initialData, onSaved }) {
                       type="text"
                       placeholder="Ej. Plan Premium 1 Mes"
                       className={cn(
-                        'w-full h-10 px-3 bg-white border rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 transition-all',
-                        errors.name ? 'border-red-300 focus:ring-red-500/20 focus:border-red-400' : 'border-slate-200 focus:ring-violet-500/30 focus:border-violet-400',
+                        'w-full h-10 px-3 bg-white dark:bg-slate-700 border rounded-xl text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 transition-all',
+                        errors.name ? 'border-red-300 focus:ring-red-500/20 focus:border-red-400' : 'border-slate-200 dark:border-slate-600 focus:ring-violet-500/30 focus:border-violet-400',
                       )}
                     />
                   </Field>
@@ -413,32 +422,61 @@ export function ProductFormModal({ isOpen, onClose, initialData, onSaved }) {
                       {...register('description')}
                       rows={3}
                       placeholder="Canales incluidos, calidad, dispositivos..."
-                      className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all resize-none"
+                      className="w-full px-3 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all resize-none"
                     />
                   </Field>
 
-                  <Field label="Categoría" required icon={Tag} error={errors.category?.message}>
+                  <Field label="Categoría" required icon={Tag} error={errors.categoriaId?.message}>
                     <Controller
-                      name="category" control={control}
+                      name="categoriaId" control={control}
                       render={({ field }) => (
-                        <div className="grid grid-cols-2 gap-2">
-                          {[
-                            { value: 'Paid', label: 'Suscripción', desc: 'Con precio de venta' },
-                            { value: 'Demo', label: 'Demo Gratis', desc: 'Precio = 0' },
-                          ].map(({ value, label, desc }) => (
-                            <button
-                              key={value}
-                              type="button"
-                              onClick={() => field.onChange(value)}
+                        <div className="space-y-2">
+                          {categoriasLoading ? (
+                            <div className="flex items-center gap-2 h-10 px-3 border border-slate-200 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-700 text-xs text-slate-400">
+                              <Loader2 size={13} className="animate-spin shrink-0" />
+                              Cargando categorías...
+                            </div>
+                          ) : categorias.length === 0 ? (
+                            <div className="flex items-center justify-between gap-2 px-3 py-2.5 border border-dashed border-amber-300 dark:border-amber-700 rounded-xl bg-amber-50 dark:bg-amber-900/20">
+                              <div className="flex items-center gap-2">
+                                <Tag size={13} className="text-amber-500 shrink-0" />
+                                <span className="text-xs text-amber-700 dark:text-amber-400 font-medium">No hay categorías activas</span>
+                              </div>
+                              <a
+                                href="/categorias"
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-[11px] font-bold text-amber-600 dark:text-amber-400 hover:underline whitespace-nowrap"
+                              >
+                                + Agregar categoría
+                              </a>
+                            </div>
+                          ) : (
+                            <select
+                              value={field.value}
+                              onChange={(e) => field.onChange(e.target.value)}
                               className={cn(
-                                'flex flex-col items-start p-3 rounded-xl border-2 text-left transition-all',
-                                field.value === value ? 'border-violet-500 bg-violet-50' : 'border-slate-200 bg-white hover:border-slate-300',
+                                'w-full h-10 px-3 bg-white dark:bg-slate-700 border rounded-xl text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 transition-all',
+                                errors.categoriaId
+                                  ? 'border-red-300 focus:ring-red-500/20 focus:border-red-400'
+                                  : 'border-slate-200 dark:border-slate-600 focus:ring-violet-500/30 focus:border-violet-400',
                               )}
                             >
-                              <span className={cn('text-xs font-bold', field.value === value ? 'text-violet-700' : 'text-slate-700')}>{label}</span>
-                              <span className="text-[10px] text-slate-400 mt-0.5">{desc}</span>
-                            </button>
-                          ))}
+                              <option value="">— Seleccionar —</option>
+                              {categorias.map((cat) => (
+                                <option key={cat.id} value={cat.id}>{cat.nombre}</option>
+                              ))}
+                            </select>
+                          )}
+                          {field.value && categorias.length > 0 && (() => {
+                            const cat = categorias.find(c => c.id === field.value);
+                            return cat ? (
+                              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-700/50 border border-slate-100 dark:border-slate-700">
+                                <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: cat.color || '#8B5CF6' }} />
+                                <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">{cat.nombre}</span>
+                              </div>
+                            ) : null;
+                          })()}
                         </div>
                       )}
                     />
@@ -448,8 +486,8 @@ export function ProductFormModal({ isOpen, onClose, initialData, onSaved }) {
                     <select
                       {...register('plataforma')}
                       className={cn(
-                        'w-full h-10 px-3 bg-white border rounded-xl text-sm text-slate-800 focus:outline-none focus:ring-2 transition-all',
-                        errors.plataforma ? 'border-red-300 focus:ring-red-500/20 focus:border-red-400' : 'border-slate-200 focus:ring-violet-500/30 focus:border-violet-400',
+                        'w-full h-10 px-3 bg-white dark:bg-slate-700 border rounded-xl text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 transition-all',
+                        errors.plataforma ? 'border-red-300 focus:ring-red-500/20 focus:border-red-400' : 'border-slate-200 dark:border-slate-600 focus:ring-violet-500/30 focus:border-violet-400',
                       )}
                     >
                       <option value="">— Seleccionar —</option>
@@ -473,7 +511,7 @@ export function ProductFormModal({ isOpen, onClose, initialData, onSaved }) {
               </div>
 
               {/* Footer */}
-              <div className="sticky bottom-0 bg-white border-t border-slate-100 px-5 py-4 flex flex-col gap-3 shrink-0">
+              <div className="sticky bottom-0 bg-white dark:bg-slate-800 border-t border-slate-100 dark:border-slate-700 px-5 py-4 flex flex-col gap-3 shrink-0">
                 {apiError && (
                   <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-100 rounded-xl text-xs text-red-600">
                     <AlertCircle size={13} className="shrink-0" /> {apiError}
@@ -481,7 +519,7 @@ export function ProductFormModal({ isOpen, onClose, initialData, onSaved }) {
                 )}
                 <div className="flex items-center gap-3">
                   <button type="button" onClick={onClose}
-                    className="flex-1 sm:flex-none h-10 px-5 bg-slate-100 text-slate-700 text-sm font-semibold rounded-xl hover:bg-slate-200 transition-colors">
+                    className="flex-1 sm:flex-none h-10 px-5 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-semibold rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
                     Cancelar
                   </button>
                   <motion.button

@@ -11,35 +11,79 @@ import {
   ChevronRight,
   Layers,
   AlertCircle,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { CatalogListSkeleton } from '../../components/ui/Skeleton';
 import { serviceTypeService } from '../../services/serviceTypeService';
+import { categoriasService } from '../../services/categoriasService';
 import { useAuthContext } from '../../context/AuthContext';
-
-// Categorías fijas del API
-const CATEGORIES = [
-  { id: 'Paid', name: 'Suscripciones IPTV' },
-  { id: 'Demo', name: 'Demos Gratuitas' },
-];
 
 // ─── helpers ───────────────────────────────────────────────────────────────────
 const formatPrice = (p) =>
   new Intl.NumberFormat('es-NI', { style: 'currency', currency: 'NIO', minimumFractionDigits: 2 }).format(p);
 
 // ─── Availability Badge ─────────────────────────────────────────────────────────
-function AvailabilityBadge({ available }) {
-  const isAvailable = available !== false;
+function AvailabilityBadge({ isActive }) {
   return (
     <span className={cn(
       'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide',
-      isAvailable
-        ? 'bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-400 ring-1 ring-violet-200 dark:ring-violet-700/50'
-        : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 ring-1 ring-slate-200 dark:ring-slate-600'
+      isActive !== false
+        ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 ring-1 ring-emerald-200 dark:ring-emerald-700/50'
+        : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 ring-1 ring-red-200 dark:ring-red-700/50'
     )}>
-      <span className={cn('w-1.5 h-1.5 rounded-full', isAvailable ? 'bg-violet-500' : 'bg-slate-400')} />
-      {isAvailable ? 'Disponible' : 'Pausado'}
+      <span className={cn('w-1.5 h-1.5 rounded-full', isActive !== false ? 'bg-emerald-500' : 'bg-red-400')} />
+      {isActive !== false ? 'Activo' : 'Inactivo'}
     </span>
+  );
+}
+
+// ─── Delete Confirm Dialog ───────────────────────────────────────────────────────
+function DeleteConfirmDialog({ product, onConfirm, onCancel }) {
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+        onClick={onCancel}
+      />
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        className="relative z-10 w-full max-w-sm bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-2xl"
+      >
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-900/30 flex items-center justify-center shrink-0">
+            <Trash2 size={18} className="text-red-500" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white">¿Eliminar este servicio?</h3>
+            <p className="text-xs text-slate-400 mt-0.5 truncate max-w-[200px]">{product.name}</p>
+          </div>
+        </div>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">
+          El servicio <span className="font-semibold text-slate-700 dark:text-slate-200">{product.name}</span> será
+          eliminado permanentemente del sistema y no aparecerá en ninguna parte.{' '}
+          <span className="font-semibold text-red-500">Esta acción no se puede deshacer.</span>
+        </p>
+        <div className="flex gap-2">
+          <button
+            onClick={onCancel}
+            className="flex-1 h-9 px-4 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-semibold rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={onConfirm}
+            className="flex-1 h-9 px-4 bg-red-500 text-white text-sm font-semibold rounded-xl hover:bg-red-600 transition-colors"
+          >
+            Eliminar
+          </button>
+        </div>
+      </motion.div>
+    </div>
   );
 }
 
@@ -86,7 +130,7 @@ function ProductCard({ product, categoryName, onEdit, onDelete }) {
             Editar
           </button>
           <button
-            onClick={() => onDelete(product.id)}
+            onClick={() => onDelete(product)}
             className="flex items-center justify-center w-7 h-7 bg-red-500 text-white rounded-xl shadow-lg hover:bg-red-600 active:scale-95 transition-all"
           >
             <Trash2 size={13} />
@@ -110,7 +154,7 @@ function ProductCard({ product, categoryName, onEdit, onDelete }) {
         </div>
         <div className="flex items-center justify-between mt-auto pt-1">
           <span className="text-base font-bold text-violet-700">{formatPrice(product.price)}</span>
-          <AvailabilityBadge available={product.isActive} />
+          <AvailabilityBadge isActive={product.isActive} />
         </div>
       </div>
 
@@ -125,7 +169,7 @@ function ProductCard({ product, categoryName, onEdit, onDelete }) {
         </button>
         <div className="w-px bg-slate-100 dark:bg-slate-700" />
         <button
-          onClick={() => onDelete(product.id)}
+          onClick={() => onDelete(product)}
           className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
         >
           <Trash2 size={13} />
@@ -152,14 +196,14 @@ function CategoryRow({ category, productCount, isSelected, onClick, onEdit }) {
           : 'hover:bg-slate-50 dark:hover:bg-slate-700/50 text-slate-700 dark:text-slate-300'
       )}
     >
-      <div className={cn(
-        'flex items-center justify-center w-8 h-8 rounded-lg shrink-0 transition-colors',
-        isSelected ? 'bg-violet-100 dark:bg-violet-900/30' : 'bg-slate-100 dark:bg-slate-700 group-hover:bg-slate-200 dark:group-hover:bg-slate-600'
-      )}>
-        <Tag size={14} className={isSelected ? 'text-violet-600' : 'text-slate-500'} />
+      <div
+        className="flex items-center justify-center w-8 h-8 rounded-lg shrink-0 transition-colors"
+        style={{ backgroundColor: (category.color || '#8B5CF6') + (isSelected ? '33' : '1A') }}
+      >
+        <div className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: category.color || '#8B5CF6' }} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold truncate">{category.name}</p>
+        <p className="text-sm font-semibold truncate">{category.nombre ?? category.name}</p>
         <p className="text-[11px] text-slate-400">{productCount} productos</p>
       </div>
       {isSelected
@@ -226,23 +270,31 @@ function EmptyState({ icon: Icon, title, description, action }) {
 }
 
 // ─── CatalogManager ─────────────────────────────────────────────────────────────
-export function CatalogManager({ onOpenProductForm }) {
+export function CatalogManager({ onOpenProductForm, onOpenCategoryForm }) {
   const { token } = useAuthContext();
-  const [products,   setProducts]   = useState([]);
-  const categories = CATEGORIES;
-  const [loading,    setLoading]    = useState(true);
-  const [apiError,   setApiError]   = useState('');
-  const [selectedCategory, setSelectedCategory] = useState(null); // null = all
+  const [products,    setProducts]    = useState([]);
+  const [categories,  setCategories]  = useState([]);
+  const [loading,     setLoading]     = useState(true);
+  const [apiError,    setApiError]    = useState('');
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [activeFilter, setActiveFilter] = useState('all'); // 'all' | 'active' | 'inactive'
   const [searchQuery, setSearchQuery] = useState('');
-  const [mobileTab, setMobileTab] = useState('products'); // 'products' | 'categories'
+  const [mobileTab, setMobileTab] = useState('products');
+  const [pendingDelete, setPendingDelete] = useState(null); // product | null
 
   // ── Cargar datos desde el backend ─────────────────────────────────────────
   const fetchData = useCallback(() => {
     if (!token) return;
     setLoading(true);
     setApiError('');
-    serviceTypeService.getAll(token)
-      .then((data) => setProducts(data ?? []))
+    Promise.all([
+      serviceTypeService.getAll(token),
+      categoriasService.getAll(token),
+    ])
+      .then(([prods, cats]) => {
+        setProducts(prods ?? []);
+        setCategories(cats ?? []);
+      })
       .catch((err) => setApiError(err.message))
       .finally(() => setLoading(false));
   }, [token]);
@@ -259,21 +311,27 @@ export function CatalogManager({ onOpenProductForm }) {
   // ─ Filter products
   const filteredProducts = useMemo(() => {
     let list = products;
-    if (selectedCategory) list = list.filter((p) => p.category === selectedCategory);
+    if (selectedCategory) list = list.filter((p) => p.categoriaId === selectedCategory);
+    if (activeFilter === 'active')   list = list.filter((p) => p.isActive !== false);
+    if (activeFilter === 'inactive') list = list.filter((p) => p.isActive === false);
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       list = list.filter((p) => p.name.toLowerCase().includes(q));
     }
     return list;
-  }, [products, selectedCategory, searchQuery]);
+  }, [products, selectedCategory, activeFilter, searchQuery]);
 
-  const handleDeleteProduct = async (id) => {
-    if (!window.confirm('¿Desactivar este servicio?')) return;
+  const handleDeleteProduct = (product) => setPendingDelete(product);
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
     try {
-      await serviceTypeService.remove(id, token);
-      setProducts((prev) => prev.filter((p) => p.id !== id));
+      await serviceTypeService.remove(pendingDelete.id, token);
+      setProducts((prev) => prev.filter((p) => p.id !== pendingDelete.id));
     } catch (err) {
       setApiError(err.message);
+    } finally {
+      setPendingDelete(null);
     }
   };
 
@@ -281,7 +339,7 @@ export function CatalogManager({ onOpenProductForm }) {
     onOpenProductForm?.(product, fetchData);
   };
 
-  const productCountFor = (catId) => products.filter((p) => p.category === catId).length;
+  const productCountFor = (catId) => products.filter((p) => p.categoriaId === catId).length;
 
   // ─── Header ─────────────────────────────────────────────────────────────────
   const Header = (
@@ -333,21 +391,50 @@ export function CatalogManager({ onOpenProductForm }) {
     </div>
   );
 
-  // ─── Category filter pills (desktop) ────────────────────────────────────────
+  // ─── Filter pills ─────────────────────────────────────────────────────────────
   const CategoryPills = (
     <div className="flex flex-wrap gap-1.5 px-4 md:px-6 pb-3">
-      {[{ id: null, name: 'Todos' }, ...categories].map((cat) => (
+      {[{ id: null, nombre: 'Todos', color: null }, ...categories].map((cat) => (
         <button
           key={cat.id ?? 'all'}
           onClick={() => setSelectedCategory(cat.id)}
           className={cn(
-            'px-3 py-1 rounded-full text-xs font-semibold transition-all duration-150',
+            'flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all duration-150',
             selectedCategory === cat.id
-              ? 'bg-violet-600 text-white shadow-sm'
+              ? 'text-white shadow-sm'
               : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-violet-300 dark:hover:border-violet-600 hover:text-violet-700 dark:hover:text-violet-400'
           )}
+          style={selectedCategory === cat.id ? { backgroundColor: cat.color || '#7C3AED' } : {}}
         >
-          {cat.name}
+          {cat.color && (
+            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
+          )}
+          {cat.nombre}
+        </button>
+      ))}
+
+      {/* Separador */}
+      <span className="w-px bg-slate-200 dark:bg-slate-700 mx-0.5" />
+
+      {[
+        { id: 'all',      label: 'Todos',    icon: null },
+        { id: 'active',   label: 'Activos',  icon: Eye },
+        { id: 'inactive', label: 'Inactivos', icon: EyeOff },
+      ].map(({ id, label, icon: Icon }) => (
+        <button
+          key={id}
+          onClick={() => setActiveFilter(id)}
+          className={cn(
+            'flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold transition-all duration-150',
+            activeFilter === id
+              ? id === 'inactive'
+                ? 'bg-red-500 text-white shadow-sm'
+                : 'bg-emerald-600 text-white shadow-sm'
+              : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-500'
+          )}
+        >
+          {Icon && <Icon size={11} />}
+          {label}
         </button>
       ))}
     </div>
@@ -378,12 +465,12 @@ export function CatalogManager({ onOpenProductForm }) {
         >
           <AnimatePresence>
             {filteredProducts.map((product) => {
-              const cat = CATEGORIES.find((c) => c.id === product.category);
+              const cat = categories.find((c) => c.id === product.categoriaId);
               return (
                 <ProductCard
                   key={product.id}
                   product={product}
-                  categoryName={cat?.name ?? product.category ?? 'Sin categoría'}
+                  categoryName={cat?.nombre ?? 'Sin categoría'}
                   onEdit={handleEditProduct}
                   onDelete={handleDeleteProduct}
                 />
@@ -403,6 +490,15 @@ export function CatalogManager({ onOpenProductForm }) {
           icon={Tag}
           title="Sin categorías"
           description="Crea categorías para organizar tus productos"
+          action={
+            <button
+              onClick={() => onOpenCategoryForm?.(null, fetchData)}
+              className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white text-xs font-semibold rounded-xl hover:bg-violet-700 active:scale-95 transition-all"
+            >
+              <Plus size={13} />
+              Nueva categoría
+            </button>
+          }
         />
       ) : (
         <AnimatePresence>
@@ -413,7 +509,7 @@ export function CatalogManager({ onOpenProductForm }) {
               productCount={productCountFor(cat.id)}
               isSelected={selectedCategory === cat.id}
               onClick={(id) => setSelectedCategory((prev) => (prev === id ? null : id))}
-              onEdit={() => {}}
+              onEdit={(cat) => onOpenCategoryForm?.(cat, fetchData)}
             />
           ))}
         </AnimatePresence>
@@ -427,14 +523,31 @@ export function CatalogManager({ onOpenProductForm }) {
 
   return (
     <div className="h-full">
+      <AnimatePresence>
+        {pendingDelete && (
+          <DeleteConfirmDialog
+            product={pendingDelete}
+            onConfirm={confirmDelete}
+            onCancel={() => setPendingDelete(null)}
+          />
+        )}
+      </AnimatePresence>
+
       {Header}
 
       {/* ── DESKTOP: two-column layout ──────────────────────────────────────── */}
       <div className="hidden md:flex gap-0 h-[calc(100%-9rem)]">
         {/* Left: Category sidebar */}
         <div className="w-56 lg:w-64 shrink-0 border-r border-slate-200 dark:border-slate-700 overflow-y-auto scrollbar-hide">
-          <div className="px-3 pt-1 pb-2">
+          <div className="px-3 pt-1 pb-2 flex items-center justify-between">
             <p className="px-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Categorías</p>
+            <button
+              onClick={() => onOpenCategoryForm?.(null, fetchData)}
+              title="Nueva categoría"
+              className="p-1 rounded-lg text-slate-400 hover:text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-900/30 dark:hover:text-violet-400 transition-all"
+            >
+              <Plus size={14} />
+            </button>
           </div>
           <div
             onClick={() => setSelectedCategory(null)}

@@ -8,6 +8,7 @@ import { AppShell } from './components/layout/AppShell';
 import { MenuBoard } from './features/menu/MenuBoard';
 import { PublicMenu } from './features/menu/PublicMenu';
 import { CatalogManager } from './features/catalog/CatalogManager';
+import { CategoriasPage } from './features/catalog/CategoriasPage';
 import { ProductFormModal } from './features/catalog/ProductFormModal';
 import { CategoryFormModal } from './features/catalog/CategoryFormModal';
 import { ReportsDashboard } from './features/reports/ReportsDashboard';
@@ -95,6 +96,9 @@ function AppContent() {
                       onOpenProductForm={handleOpenProductForm}
                       onOpenCategoryForm={handleOpenCategoryForm}
                     />
+                  } />
+                  <Route path="/categorias" element={
+                    <CategoriasPage onOpenCategoryForm={handleOpenCategoryForm} />
                   } />
                   <Route path="/menu"     element={<MenuBoard />} />
                   <Route path="/clientes" element={<ClientesPage />} />

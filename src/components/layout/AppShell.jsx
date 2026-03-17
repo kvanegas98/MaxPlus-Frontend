@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, cloneElement } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ShoppingCart, Package, Settings, ChevronLeft, ChevronRight,
   Search, Menu, X, MonitorPlay, TrendingUp, Tv,
   Users, LogOut, UserCog, Receipt, PlayCircle, ShoppingBag, Landmark,
-  Sun, Moon, RefreshCw, Layers
+  Sun, Moon, RefreshCw, Layers, Tag
 } from 'lucide-react';
 import { useSettings } from '../../hooks/useSettings';
 import { useAuthContext } from '../../context/AuthContext';
@@ -26,6 +26,7 @@ const NAV_ITEMS = [
   { path: '/orders',            label: 'Órdenes Web',     icon: ShoppingBag,  shortLabel: 'Órdenes' },
   { path: '/payment-methods',   label: 'Métodos de Pago', icon: Landmark,     shortLabel: 'Pagos' },
   { path: '/menu',              label: 'Menú Digital',    icon: MonitorPlay,  shortLabel: 'Menú' },
+  { path: '/categorias',         label: 'Categorías',      icon: Tag,          shortLabel: 'Categ.',   adminOnly: true },
   { path: '/plataformas',        label: 'Plataformas',     icon: Layers,       shortLabel: 'Plataf.',  adminOnly: true },
   { path: '/users',             label: 'Usuarios',        icon: UserCog,      shortLabel: 'Usuarios', adminOnly: true },
   { path: '/settings',          label: 'Ajustes',         icon: Settings,     shortLabel: 'Ajustes' },
@@ -33,6 +34,33 @@ const NAV_ITEMS = [
 
 // Route order for directional slide transition
 const ROUTE_ORDER = NAV_ITEMS.map(n => n.path);
+
+// ─── NavProgressBar ───────────────────────────────────────────────────────────
+function NavProgressBar({ active }) {
+  return (
+    <AnimatePresence>
+      {active && (
+        <motion.div
+          initial={{ scaleX: 0, opacity: 1 }}
+          animate={{ scaleX: 0.85, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] } }}
+          exit={{ scaleX: 1, opacity: 0, transition: { duration: 0.2, ease: 'easeOut' } }}
+          style={{ transformOrigin: '0% 50%' }}
+          className="fixed top-0 left-0 right-0 h-[3px] bg-violet-500 z-[999] shadow-[0_0_8px_2px_rgba(139,92,246,0.6)]"
+        />
+      )}
+    </AnimatePresence>
+  );
+}
+
+// ─── FrozenRoutes ─────────────────────────────────────────────────────────────
+// Captures the router location at mount time and passes it to <Routes> as a
+// prop, preventing the exiting motion.div from re-rendering with the new route
+// while its exit animation is still playing.
+function FrozenRoutes({ children }) {
+  const location = useLocation();
+  const [loc] = useState(location);
+  return cloneElement(children, { location: loc });
+}
 
 // ─── useNavDirection ──────────────────────────────────────────────────────────
 function useNavDirection(pathname) {
@@ -446,13 +474,15 @@ export function AppShell({ children }) {
   const [pullRefreshing,     setPullRefreshing]     = useState(false);
   const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
 
-  const { pathname }  = useLocation();
+  const location      = useLocation();
+  const { pathname }  = location;
   const { settings }  = useSettings();
   const auth          = useAuthContext();
   const { isDark, toggle: toggleDark } = useDarkMode();
   const { menuItems }  = useMenu();
 
   const direction   = useNavDirection(pathname);
+  const [isNavigating, setIsNavigating] = useState(false);
   const isAdmin     = auth.user?.roleName === 'Admin';
 
   // Fetch pending orders count for nav badge
@@ -467,6 +497,13 @@ export function AppShell({ children }) {
     const interval = setInterval(fetch, 60_000); // refresh every 60s
     return () => clearInterval(interval);
   }, [auth.token]);
+
+  // Show progress bar briefly on every route change
+  useEffect(() => {
+    setIsNavigating(true);
+    const t = setTimeout(() => setIsNavigating(false), 600);
+    return () => clearTimeout(t);
+  }, [pathname]);
 
   const visibleNav  = NAV_ITEMS
     .filter(n => !n.adminOnly || isAdmin)
@@ -548,6 +585,7 @@ export function AppShell({ children }) {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-50 dark:bg-slate-950 font-sans selection:bg-violet-100 selection:text-violet-900">
+      <NavProgressBar active={isNavigating} />
 
       <DesktopSidebar
         collapsed={sidebarCollapsed}
@@ -597,7 +635,7 @@ export function AppShell({ children }) {
               transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
               className="h-full"
             >
-              {children}
+              <FrozenRoutes>{children}</FrozenRoutes>
             </motion.div>
           </AnimatePresence>
         </main>

@@ -220,38 +220,42 @@ export function DemosPage() {
   ];
 
   return (
-    <div className="h-full flex flex-col p-6 max-w-7xl mx-auto w-full gap-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 dark:text-white font-display tracking-tight flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-violet-600 flex items-center justify-center shadow-lg shadow-violet-600/20 text-white">
-              <PlayCircle size={20} strokeWidth={2.5} />
-            </div>
-            Demos Solicitados
-          </h1>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Solicitudes de demostración de clientes</p>
+    <div className="h-full flex flex-col p-4 md:p-6 max-w-7xl mx-auto w-full gap-4 md:gap-6">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 md:w-10 md:h-10 rounded-2xl bg-violet-600 flex items-center justify-center shadow-lg shadow-violet-600/20 text-white shrink-0">
+            <PlayCircle size={18} strokeWidth={2.5} />
+          </div>
+          <div>
+            <h1 className="text-lg md:text-2xl font-black text-slate-900 dark:text-white font-display tracking-tight leading-tight">
+              Demos Solicitados
+            </h1>
+            <p className="text-xs md:text-sm font-medium text-slate-500 dark:text-slate-400">Solicitudes de demostración</p>
+          </div>
         </div>
-        <button onClick={loadDemos} className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500 hover:text-violet-600 transition-all shadow-sm">
-          <RefreshCw size={18} className={cn(loading && 'animate-spin')} />
+        <button onClick={loadDemos} className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500 hover:text-violet-600 transition-all shadow-sm shrink-0">
+          <RefreshCw size={16} className={cn(loading && 'animate-spin')} />
         </button>
       </div>
 
-      <div className="flex items-center gap-2 p-1 bg-slate-200/50 dark:bg-slate-800/80 rounded-2xl w-fit">
-        {TABS.map(t => (
-          <button
-            key={t.id}
-            onClick={() => setFilter(t.id)}
-            className={cn(
-              'flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all',
-              filter === t.id
-                ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-white'
-                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300',
-            )}
-          >
-            <t.icon size={14} className={filter === t.id ? t.color : 'opacity-50'} />
-            {t.label}
-          </button>
-        ))}
+      <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
+        <div className="flex items-center gap-2 p-1 bg-slate-200/50 dark:bg-slate-800/80 rounded-2xl w-fit min-w-full md:min-w-0">
+          {TABS.map(t => (
+            <button
+              key={t.id}
+              onClick={() => setFilter(t.id)}
+              className={cn(
+                'flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-xl text-[11px] md:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap',
+                filter === t.id
+                  ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-white'
+                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300',
+              )}
+            >
+              <t.icon size={13} className={filter === t.id ? t.color : 'opacity-50'} />
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="flex-1 bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 overflow-hidden flex flex-col">
