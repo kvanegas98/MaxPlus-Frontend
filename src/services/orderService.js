@@ -8,7 +8,8 @@ export const orderService = {
   create: (data) => apiPost('/api/orders', data),
 
   // Admin (con token)
-  getAll:  (status, token) => apiGet(`/api/orders${status ? `?status=${status}` : ''}`, token),
-  approve: (id, data, token) => apiPost(`/api/orders/${id}/approve`, data, token),
-  reject:  (id, data, token) => apiPost(`/api/orders/${id}/reject`, data, token),
+  getAll:  (status, token)     => apiGet(`/api/orders${status ? `?status=${status}` : ''}`, token),
+  getById: (id, token)         => apiGet(`/api/orders/${id}`, token),
+  approve: (id, data, token)   => apiPost(`/api/orders/${id}/approve`, data, token),
+  reject:  (id, data, token)   => apiPost(`/api/orders/${id}/reject`, data, token),
 };

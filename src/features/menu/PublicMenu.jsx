@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Star, Plus, X, Check, Send,
   Search, MapPin, Clock, Phone, Info,
-  Tv2, Wifi, Shield, Zap, Building2, CreditCard, MonitorPlay,
+  Tv2, Wifi, Shield, Zap, Building2, CreditCard,
+  ShoppingCart, Trash2, Minus,
 } from 'lucide-react';
 import { cn, fmtCRD } from '../../lib/utils';
 import { useToast } from '../../context/ToastContext';
@@ -16,6 +17,14 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { isValidPhoneNumber } from 'react-phone-number-input';
 import PhoneField from '../../components/ui/PhoneField';
+
+// Normaliza un número de teléfono para WhatsApp (siempre con código de país)
+function waPhone(raw, defaultCountry = '505') {
+  const digits = (raw || '').replace(/\D/g, '');
+  if (!digits) return defaultCountry + '77026450'; // fallback admin
+  if (digits.startsWith(defaultCountry)) return digits;
+  return defaultCountry + digits;
+}
 
 // ─── Skeleton ──────────────────────────────────────────────────────────────────
 function Skeleton() {
@@ -34,7 +43,7 @@ function Skeleton() {
 }
 
 // ─── ProductCard ───────────────────────────────────────────────────────────────
-function ProductCard({ p, onSelect, addToCart, isFeatured }) {
+function ProductCard({ p, onSelect, addToCart, removeFromCart, inCart, isFeatured }) {
   const isAvailable = p.isActive !== false;
 
   // Parse description into feature bullets
@@ -147,29 +156,39 @@ function ProductCard({ p, onSelect, addToCart, isFeatured }) {
         </div>
 
         {/* CTA */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            addToCart(p);
-          }}
-          disabled={!isAvailable}
-          className={cn(
-            'w-full py-3.5 rounded-2xl text-[11px] font-black flex items-center justify-center gap-2 transition-all uppercase tracking-widest',
-            isAvailable
-              ? p.price === 0
-                ? 'bg-emerald-600 text-white hover:bg-emerald-500 hover:shadow-lg hover:shadow-emerald-500/20 active:scale-[0.98]'
-                : 'bg-violet-600 text-white hover:bg-violet-500 hover:shadow-lg hover:shadow-violet-500/20 active:scale-[0.98]'
-              : 'bg-zinc-800 text-zinc-600 cursor-not-allowed',
-          )}
-        >
-          {isAvailable ? (
-            p.price === 0 ? (
-              <><Star size={14} strokeWidth={3} /> Solicitar Demo</>
-            ) : (
-              <><Plus size={14} strokeWidth={3} /> Solicitar Plan</>
-            )
-          ) : 'Temporalmente Inactivo'}
-        </button>
+        {isAvailable ? (
+          p.price === 0 ? (
+            <button
+              onClick={(e) => { e.stopPropagation(); addToCart(p); }}
+              className="w-full py-3.5 rounded-2xl text-[11px] font-black flex items-center justify-center gap-2 transition-all uppercase tracking-widest bg-emerald-600 text-white hover:bg-emerald-500 hover:shadow-lg hover:shadow-emerald-500/20 active:scale-[0.98]"
+            >
+              <Star size={14} strokeWidth={3} /> Solicitar Demo
+            </button>
+          ) : inCart ? (
+            <div className="flex gap-2">
+              <div className="flex-1 py-3.5 rounded-2xl text-[11px] font-black flex items-center justify-center gap-2 bg-emerald-600/20 border border-emerald-500/40 text-emerald-400 uppercase tracking-widest">
+                <Check size={14} strokeWidth={3} /> En carrito
+              </div>
+              <button
+                onClick={(e) => { e.stopPropagation(); removeFromCart(p.id); }}
+                className="w-12 h-12 rounded-2xl bg-zinc-800 hover:bg-red-900/40 hover:text-red-400 text-zinc-500 flex items-center justify-center transition-all border border-zinc-700 hover:border-red-700/50"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={(e) => { e.stopPropagation(); addToCart(p); }}
+              className="w-full py-3.5 rounded-2xl text-[11px] font-black flex items-center justify-center gap-2 transition-all uppercase tracking-widest bg-violet-600 text-white hover:bg-violet-500 hover:shadow-lg hover:shadow-violet-500/20 active:scale-[0.98]"
+            >
+              <ShoppingCart size={14} strokeWidth={2.5} /> Agregar al carrito
+            </button>
+          )
+        ) : (
+          <div className="w-full py-3.5 rounded-2xl text-[11px] font-black flex items-center justify-center bg-zinc-800 text-zinc-600 cursor-not-allowed uppercase tracking-widest">
+            Temporalmente Inactivo
+          </div>
+        )}
       </div>
     </motion.div>
   );
@@ -292,8 +311,8 @@ function DemoRequestModal({ product, settings, isOpen, onClose }) {
       setDone(true);
       toast.success('¡Solicitud enviada! Nos pondremos en contacto por WhatsApp.');
 
-      if (settings?.phone) {
-        const phone = settings.phone.replace(/[^0-9]/g, '');
+      if (true) {
+        const phone = waPhone(settings?.phone);
         const msg = [
           `🆓 *Nueva Solicitud de Demo*`,
           ``,
@@ -304,7 +323,7 @@ function DemoRequestModal({ product, settings, isOpen, onClose }) {
           ``,
           `_Enviado desde el Menú Digital_`,
         ].filter(Boolean).join('\n');
-        window.open(`https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`, '_blank');
+        window.open(`https://api.whatsapp.com/send?phone=${waPhone(settings?.phone)}&text=${encodeURIComponent(msg)}`, '_blank');
       }
     } catch (err) {
       toast.error(err.message || 'Error al enviar la solicitud');
@@ -449,8 +468,7 @@ function OrderRequestModal({ product, settings, isOpen, onClose }) {
       toast.success('¡Orden recibida! Te enviaremos las credenciales por WhatsApp.');
 
       // Enviar notificación por WhatsApp al negocio con el número de orden
-      if (settings?.phone) {
-        const phone = settings.phone.replace(/[^0-9]/g, '');
+      if (true) {
         const msg = [
           `🛒 *Nueva Orden ${res.numeroOrden || res.id}*`,
           ``,
@@ -462,7 +480,7 @@ function OrderRequestModal({ product, settings, isOpen, onClose }) {
           ``,
           `_Enviado desde el Menú Digital_`,
         ].filter(Boolean).join('\n');
-        window.open(`https://api.whatsapp.com/send?phone=505${phone}&text=${encodeURIComponent(msg)}`, '_blank');
+        window.open(`https://api.whatsapp.com/send?phone=${waPhone(settings?.phone)}&text=${encodeURIComponent(msg)}`, '_blank');
       }
     } catch (err) {
       toast.error(err.message || 'Error al enviar la solicitud');
@@ -635,6 +653,380 @@ function ImageLightbox({ imageUrl, onClose }) {
   );
 }
 
+// ─── CartDrawer ────────────────────────────────────────────────────────────────
+const cartSchema = z.object({
+  customerName:  z.string().min(3, 'Nombre muy corto'),
+  customerPhone: z.string().min(1, 'Teléfono requerido').refine(
+    v => v && v.replace(/\D/g, '').length >= 8,
+    'Número inválido — verifica el código de país'
+  ),
+  customerEmail: z.string().email('Email inválido'),
+  notes:         z.string().optional(),
+});
+
+const MONTH_CHIPS = [1, 2, 3, 6, 12, 24];
+
+function Stepper({ value, min = 1, max = 10, onChange }) {
+  return (
+    <div className="flex items-center gap-1">
+      <button
+        type="button"
+        onClick={() => onChange(Math.max(min, value - 1))}
+        disabled={value <= min}
+        className="w-9 h-9 rounded-xl bg-zinc-700 hover:bg-zinc-600 text-white flex items-center justify-center transition-colors disabled:opacity-30 active:scale-95"
+      >
+        <Minus size={14} />
+      </button>
+      <span className="w-7 text-center text-sm font-black text-white">{value}</span>
+      <button
+        type="button"
+        onClick={() => onChange(Math.min(max, value + 1))}
+        disabled={value >= max}
+        className="w-9 h-9 rounded-xl bg-zinc-700 hover:bg-zinc-600 text-white flex items-center justify-center transition-colors disabled:opacity-30 active:scale-95"
+      >
+        <Plus size={14} />
+      </button>
+    </div>
+  );
+}
+
+function CartDrawer({ cart, onRemove, onUpdate, onClear, onClose, settings }) {
+  const { toast }               = useToast();
+  const [submitting, setSubmitting] = useState(false);
+  const [success,    setSuccess]    = useState(null);
+  const [step,       setStep]       = useState('cart'); // 'cart' | 'form'
+
+  const total = cart.reduce((acc, c) => acc + c.product.price * (c.quantity || 1) * (c.durationMonths || 1), 0);
+
+  const form = useForm({ resolver: zodResolver(cartSchema) });
+
+  const onSubmit = async (data) => {
+    setSubmitting(true);
+    try {
+      const res = await orderService.create({
+        customerName:  data.customerName,
+        customerPhone: data.customerPhone,
+        customerEmail: data.customerEmail,
+        notes:         data.notes || '',
+        items: cart.map(c => ({
+          tipoServicioId: c.product.id,
+          cantidad:       c.quantity       || 1,
+          durationMonths: c.durationMonths || 1,
+        })),
+      });
+
+      setSuccess({ numeroOrden: res.numeroOrden || res.id });
+      onClear();
+
+      if (true) {
+        const lines = cart.map(c =>
+          `  • ${c.product.name} — ${c.durationMonths || 1} mes(es) × ${c.quantity || 1} — C$ ${(c.product.price * (c.quantity || 1) * (c.durationMonths || 1)).toFixed(2)}`
+        );
+        const msg = [
+          `🛒 *Nueva Orden Carrito ${res.numeroOrden || res.id}*`,
+          ``,
+          `👤 *Cliente:* ${data.customerName}`,
+          `📱 *Teléfono:* ${data.customerPhone}`,
+          `📧 *Email:* ${data.customerEmail}`,
+          ``,
+          `📺 *Servicios:*`,
+          ...lines,
+          ``,
+          `💰 *Total:* C$ ${total.toFixed(2)}`,
+          data.notes ? `📝 *Nota:* ${data.notes}` : '',
+          `_Enviado desde el Menú Digital_`,
+        ].filter(Boolean).join('\n');
+        window.open(`https://api.whatsapp.com/send?phone=${waPhone(settings?.phone)}&text=${encodeURIComponent(msg)}`, '_blank');
+      }
+    } catch (err) {
+      toast.error(err.message || 'Error al enviar la orden');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <>
+      {/* Backdrop */}
+      <motion.div
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="fixed inset-0 bg-black/75 backdrop-blur-sm z-[140]"
+      />
+
+      {/* Sheet — bottom on mobile, right panel on md+ */}
+      <motion.div
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        transition={{ type: 'spring', damping: 32, stiffness: 380 }}
+        className="fixed bottom-0 left-0 right-0 md:left-auto md:top-0 md:w-[400px] bg-zinc-900 border-t md:border-t-0 md:border-l border-zinc-800 z-[141] flex flex-col shadow-2xl rounded-t-3xl md:rounded-none"
+        style={{ maxHeight: '92dvh' }}
+      >
+        {/* Drag handle (mobile) */}
+        <div className="md:hidden flex justify-center pt-3 pb-1 shrink-0">
+          <div className="w-10 h-1 rounded-full bg-zinc-700" />
+        </div>
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800 shrink-0">
+          <div className="flex items-center gap-3">
+            {step === 'form' && (
+              <button
+                onClick={() => setStep('cart')}
+                className="w-8 h-8 flex items-center justify-center rounded-xl text-zinc-400 hover:bg-zinc-800 transition-colors"
+              >
+                <Plus size={16} className="rotate-45" />
+              </button>
+            )}
+            <div className="w-8 h-8 rounded-xl bg-violet-600/20 border border-violet-500/30 flex items-center justify-center">
+              <ShoppingCart size={14} className="text-violet-400" />
+            </div>
+            <div>
+              <h2 className="text-sm font-black text-white leading-none">
+                {step === 'form' ? 'Tus datos' : 'Tu Carrito'}
+              </h2>
+              <p className="text-[10px] text-zinc-500 mt-0.5">
+                {step === 'form' ? 'Último paso' : `${cart.length} servicio${cart.length !== 1 ? 's' : ''} · C$ ${total.toFixed(2)}`}
+              </p>
+            </div>
+          </div>
+          <button onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-xl text-zinc-500 hover:bg-zinc-800 hover:text-white transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <AnimatePresence mode="wait">
+          {success ? (
+            /* ── Success ── */
+            <motion.div key="success"
+              initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+              className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-6">
+              <motion.div
+                initial={{ scale: 0 }} animate={{ scale: 1 }}
+                transition={{ type: 'spring', damping: 15, stiffness: 400, delay: 0.1 }}
+                className="w-20 h-20 bg-emerald-500/10 border border-emerald-500/20 rounded-3xl flex items-center justify-center"
+              >
+                <Check size={36} className="text-emerald-400" strokeWidth={2.5} />
+              </motion.div>
+              <div className="space-y-2">
+                <h3 className="text-2xl font-black text-white">¡Orden Enviada!</h3>
+                <p className="text-sm text-zinc-400 leading-relaxed">
+                  Te contactaremos por WhatsApp con las credenciales una vez aprobada.
+                </p>
+              </div>
+              <div className="w-full bg-zinc-800 rounded-2xl px-6 py-4 border border-zinc-700">
+                <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Número de Orden</p>
+                <p className="text-xl font-black text-violet-400 font-mono mt-1">{success.numeroOrden}</p>
+              </div>
+              <button onClick={onClose}
+                className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-violet-500 active:scale-[0.98] transition-all">
+                Entendido
+              </button>
+            </motion.div>
+
+          ) : step === 'cart' ? (
+            /* ── Cart items ── */
+            <motion.div key="cart" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }} className="flex-1 flex flex-col min-h-0">
+
+              <div className="flex-1 overflow-y-auto scrollbar-hide p-4 space-y-3">
+                {cart.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
+                    <ShoppingCart size={48} className="text-zinc-700" />
+                    <p className="text-zinc-500 font-bold">Tu carrito está vacío</p>
+                    <p className="text-zinc-600 text-xs">Agrega servicios desde el catálogo</p>
+                  </div>
+                ) : (
+                  cart.map((item) => {
+                    const months   = item.durationMonths || 1;
+                    const qty      = item.quantity || 1;
+                    const subtotal = item.product.price * qty * months;
+                    return (
+                      <div key={item.product.id}
+                        className="p-4 bg-zinc-800/80 rounded-2xl border border-zinc-700/60 space-y-4">
+
+                        {/* Name + remove */}
+                        <div className="flex items-start gap-3">
+                          {item.product.imageUrl ? (
+                            <img src={item.product.imageUrl} alt={item.product.name}
+                              className="w-12 h-12 rounded-xl object-cover shrink-0 border border-zinc-700" />
+                          ) : (
+                            <div className="w-12 h-12 rounded-xl bg-violet-950 border border-violet-800/40 flex items-center justify-center shrink-0">
+                              <Tv2 size={18} className="text-violet-600" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-black text-white leading-tight">{item.product.name}</p>
+                            <p className="text-xs text-zinc-500 mt-0.5">C$ {item.product.price.toFixed(2)} / mes</p>
+                          </div>
+                          <button onClick={() => onRemove(item.product.id)}
+                            className="w-8 h-8 flex items-center justify-center rounded-xl text-zinc-600 hover:text-red-400 hover:bg-red-900/20 transition-all shrink-0">
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+
+                        {/* Month chips */}
+                        <div className="space-y-1.5">
+                          <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Meses de suscripción</p>
+                          <div className="flex gap-1.5 flex-wrap">
+                            {MONTH_CHIPS.map(n => (
+                              <button
+                                key={n}
+                                type="button"
+                                onClick={() => onUpdate(item.product.id, 'durationMonths', n)}
+                                className={cn(
+                                  'px-3 py-1.5 rounded-xl text-[11px] font-black transition-all active:scale-95',
+                                  months === n
+                                    ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/20'
+                                    : 'bg-zinc-700 text-zinc-400 hover:bg-zinc-600 hover:text-white',
+                                )}
+                              >
+                                {n === 1 ? '1 mes' : `${n}m`}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Quantity stepper + subtotal */}
+                        <div className="flex items-center justify-between">
+                          <div className="space-y-1">
+                            <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Cantidad</p>
+                            <Stepper
+                              value={qty} min={1} max={5}
+                              onChange={(v) => onUpdate(item.product.id, 'quantity', v)}
+                            />
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1">Subtotal</p>
+                            <p className="text-lg font-black text-violet-400">C$ {subtotal.toFixed(2)}</p>
+                            <p className="text-[9px] text-zinc-600">{qty} × {months} mes{months !== 1 ? 'es' : ''}</p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Footer */}
+              {cart.length > 0 && (
+                <div className="border-t border-zinc-800 p-4 shrink-0 space-y-3 bg-zinc-950/80">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-zinc-400 uppercase tracking-widest">Total estimado</span>
+                    <span className="text-2xl font-black text-white">C$ {total.toFixed(2)}</span>
+                  </div>
+                  <button
+                    onClick={() => setStep('form')}
+                    className="w-full py-4 bg-violet-600 hover:bg-violet-500 active:scale-[0.98] text-white rounded-2xl font-black uppercase tracking-widest text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-violet-500/25"
+                  >
+                    <Send size={16} /> Continuar
+                  </button>
+                </div>
+              )}
+            </motion.div>
+
+          ) : (
+            /* ── Checkout form ── */
+            <motion.div key="form" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }} className="flex-1 flex flex-col min-h-0">
+
+              <div className="flex-1 overflow-y-auto scrollbar-hide p-4">
+                {/* Order summary */}
+                <div className="mb-5 p-4 bg-zinc-800/60 rounded-2xl border border-zinc-700/60 space-y-2">
+                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-3">Resumen</p>
+                  {cart.map(c => (
+                    <div key={c.product.id} className="flex items-center justify-between text-sm">
+                      <span className="text-zinc-300 truncate flex-1 mr-2">{c.product.name}</span>
+                      <span className="text-zinc-500 text-xs shrink-0">
+                        {c.durationMonths || 1}m × {c.quantity || 1}
+                      </span>
+                      <span className="text-violet-400 font-black ml-3 shrink-0">
+                        C$ {(c.product.price * (c.quantity || 1) * (c.durationMonths || 1)).toFixed(2)}
+                      </span>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between pt-2 border-t border-zinc-700/60">
+                    <span className="text-sm font-black text-white">Total</span>
+                    <span className="text-lg font-black text-violet-400">C$ {total.toFixed(2)}</span>
+                  </div>
+                </div>
+
+                {/* Form */}
+                <form id="cart-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
+                  <div className="space-y-1">
+                    <input
+                      {...form.register('customerName')}
+                      placeholder="Nombre completo"
+                      className={cn(
+                        'w-full px-5 py-4 bg-zinc-800 border-2 rounded-2xl text-sm font-bold outline-none transition-all text-white placeholder:text-zinc-600',
+                        form.formState.errors.customerName ? 'border-red-500/60 focus:border-red-500' : 'border-zinc-700 focus:border-violet-500',
+                      )}
+                    />
+                    {form.formState.errors.customerName && (
+                      <p className="text-[10px] text-red-400 font-black ml-1">{form.formState.errors.customerName.message}</p>
+                    )}
+                  </div>
+
+                  <Controller
+                    name="customerPhone"
+                    control={form.control}
+                    render={({ field }) => (
+                      <PhoneField
+                        dark label=""
+                        value={field.value}
+                        onChange={field.onChange}
+                        error={form.formState.errors.customerPhone?.message}
+                        placeholder="Teléfono / WhatsApp"
+                      />
+                    )}
+                  />
+
+                  <div className="space-y-1">
+                    <input
+                      {...form.register('customerEmail')}
+                      type="email"
+                      placeholder="Correo electrónico"
+                      className={cn(
+                        'w-full px-5 py-4 bg-zinc-800 border-2 rounded-2xl text-sm font-bold outline-none transition-all text-white placeholder:text-zinc-600',
+                        form.formState.errors.customerEmail ? 'border-red-500/60 focus:border-red-500' : 'border-zinc-700 focus:border-violet-500',
+                      )}
+                    />
+                    {form.formState.errors.customerEmail && (
+                      <p className="text-[10px] text-red-400 font-black ml-1">{form.formState.errors.customerEmail.message}</p>
+                    )}
+                  </div>
+
+                  <textarea
+                    {...form.register('notes')}
+                    rows={2}
+                    placeholder="Nota (opcional)"
+                    className="w-full px-5 py-3 bg-zinc-800 border-2 border-zinc-700 rounded-2xl text-sm font-bold outline-none text-white placeholder:text-zinc-600 focus:border-violet-500 resize-none transition-all"
+                  />
+                </form>
+              </div>
+
+              <div className="border-t border-zinc-800 p-4 shrink-0 bg-zinc-950/80">
+                <button
+                  type="submit" form="cart-form" disabled={submitting}
+                  className="w-full py-4 bg-violet-600 hover:bg-violet-500 active:scale-[0.98] text-white rounded-2xl font-black uppercase tracking-widest text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-violet-500/25 disabled:opacity-60"
+                >
+                  {submitting
+                    ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    : <><Send size={16} /> Enviar orden · {cart.length} servicio{cart.length !== 1 ? 's' : ''}</>
+                  }
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+    </>
+  );
+}
+
 // ─── Main PublicMenu ───────────────────────────────────────────────────────────
 export function PublicMenu() {
   const { toast } = useToast();
@@ -653,6 +1045,18 @@ export function PublicMenu() {
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [orderProduct,     setOrderProduct]     = useState(null);
   const [paymentMethods,   setPaymentMethods]   = useState([]);
+  const [cart,             setCart]             = useState(() => {
+    try {
+      const saved = localStorage.getItem('maxplus_cart');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+  const [cartOpen,         setCartOpen]         = useState(false);
+
+  // Persist cart to localStorage
+  useEffect(() => {
+    localStorage.setItem('maxplus_cart', JSON.stringify(cart));
+  }, [cart]);
 
   // Load public payment methods
   useEffect(() => {
@@ -691,7 +1095,7 @@ export function PublicMenu() {
     else setSelectedProduct(product);
   };
 
-  // Acción principal del producto
+  // Cart helpers
   const addToCart = (product, lightboxUrl = null) => {
     if (lightboxUrl) { setLightboxedImage(lightboxUrl); return; }
     if (product.isAvailable === false && product.isActive === false) { toast.error('Este servicio no está disponible'); return; }
@@ -700,10 +1104,15 @@ export function PublicMenu() {
       setDemoProduct(product);
       setIsDemoModalOpen(true);
     } else {
-      setOrderProduct(product);
-      setIsOrderModalOpen(true);
+      setCart(prev => prev.find(c => c.product.id === product.id) ? prev : [...prev, { product, quantity: 1 }]);
+      toast.success(`${product.name} agregado al carrito`);
     }
   };
+
+  const removeFromCart   = (productId) => setCart(prev => prev.filter(c => c.product.id !== productId));
+  const updateCartItem   = (productId, field, value) =>
+    setCart(prev => prev.map(c => c.product.id === productId ? { ...c, [field]: value } : c));
+  const cartCount = cart.length;
 
 
   // ── Loading ──
@@ -843,10 +1252,24 @@ export function PublicMenu() {
             />
           </div>
 
+          {/* Cart button */}
+          <button
+            onClick={() => setCartOpen(true)}
+            className="relative flex items-center gap-2 px-4 py-2.5 rounded-xl bg-violet-600 text-white text-[11px] font-black uppercase tracking-widest shadow-xl shadow-violet-500/20 active:scale-95 transition-all hover:bg-violet-500"
+          >
+            <ShoppingCart size={15} />
+            <span className="hidden sm:inline">Carrito</span>
+            {cartCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 bg-amber-400 text-zinc-900 text-[10px] font-black rounded-full flex items-center justify-center shadow-lg">
+                {cartCount}
+              </span>
+            )}
+          </button>
+
           {/* WhatsApp contact */}
           {settings?.phone && (
             <a
-              href={`https://api.whatsapp.com/send?phone=505${settings.phone.replace(/[^0-9]/g, '')}&text=${encodeURIComponent('Hola, me interesa un plan IPTV.')}`}
+              href={`https://api.whatsapp.com/send?phone=${waPhone(settings.phone)}&text=${encodeURIComponent('Hola, me interesa un plan IPTV.')}`}
               target="_blank"
               rel="noreferrer"
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-[11px] font-black uppercase tracking-widest shadow-xl shadow-emerald-500/20 active:scale-95 transition-all hover:bg-emerald-500"
@@ -927,6 +1350,8 @@ export function PublicMenu() {
                   p={p}
                   onSelect={onSelectProduct}
                   addToCart={addToCart}
+                  removeFromCart={removeFromCart}
+                  inCart={!!cart.find(c => c.product.id === p.id)}
                 />
               ))}
             </div>
@@ -953,6 +1378,8 @@ export function PublicMenu() {
                         p={p}
                         onSelect={onSelectProduct}
                         addToCart={addToCart}
+                        removeFromCart={removeFromCart}
+                        inCart={!!cart.find(c => c.product.id === p.id)}
                         isFeatured
                       />
                     </div>
@@ -1016,7 +1443,21 @@ export function PublicMenu() {
         )}
       </main>
 
-      {/* ── ORDER REQUEST MODAL (planes pagados) ── */}
+      {/* ── CART DRAWER ── */}
+      <AnimatePresence>
+        {cartOpen && (
+          <CartDrawer
+            cart={cart}
+            onRemove={removeFromCart}
+            onUpdate={updateCartItem}
+            onClear={() => setCart([])}
+            onClose={() => setCartOpen(false)}
+            settings={settings}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ── ORDER REQUEST MODAL (planes pagados — legacy, solo si se usa directamente) ── */}
       <OrderRequestModal
         product={orderProduct}
         settings={settings}

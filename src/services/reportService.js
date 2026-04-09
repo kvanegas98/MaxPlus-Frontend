@@ -48,4 +48,15 @@ export const reportService = {
       customerName: params.customerName,
       orderNumber:  params.orderNumber,
     })}`, token),
+
+  // Resumen financiero (mes actual por defecto)
+  getDashboardSummary: (params = {}, token) =>
+    apiGet(`/api/dashboard/summary${buildQS({
+      fechaDesde: params.fechaDesde,
+      fechaHasta: params.fechaHasta,
+    })}`, token),
+
+  // Suscripciones por vencer
+  getExpiring: (days = 7, token) =>
+    apiGet(`/api/dashboard/expiring?days=${days}`, token),
 };

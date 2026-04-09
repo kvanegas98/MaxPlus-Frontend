@@ -12,7 +12,8 @@ import { cn, fmtCRD } from '../../lib/utils';
 import { OrderDetailModal } from './OrderDetailModal';
 import { VoidReasonModal } from '../../components/ui/VoidReasonModal';
 import { SuccessModal } from '../../components/ui/SuccessModal';
-import { NuevaVentaPage } from '../pos/NuevaVentaPage';
+import { NuevaVentaPage }       from '../pos/NuevaVentaPage';
+import { DirectInvoiceModal }   from '../pos/DirectInvoiceModal';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const PAGE_SIZE = 10;
@@ -75,8 +76,9 @@ export function OrderHistoryPage() {
   const [orderToVoid, setOrderToVoid] = useState(null);
   const [voidLoading, setVoidLoading] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
-  const [nuevaVentaOpen, setNuevaVentaOpen] = useState(false);
+  const [showFilters,      setShowFilters]      = useState(false);
+  const [nuevaVentaOpen,   setNuevaVentaOpen]   = useState(false);
+  const [directInvoiceOpen, setDirectInvoiceOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -201,8 +203,15 @@ export function OrderHistoryPage() {
               <Clock size={16} />
             </button>
             <button
-              onClick={() => setNuevaVentaOpen(true)}
+              onClick={() => setDirectInvoiceOpen(true)}
               className="flex items-center gap-2 h-10 px-4 bg-violet-600 hover:bg-violet-500 active:scale-95 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-violet-600/25 transition-all"
+            >
+              <Receipt size={15} strokeWidth={2.5} />
+              <span className="hidden sm:inline">Nueva Factura</span>
+            </button>
+            <button
+              onClick={() => setNuevaVentaOpen(true)}
+              className="flex items-center gap-2 h-10 px-4 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 active:scale-95 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
             >
               <Plus size={15} strokeWidth={3} />
               <span className="hidden sm:inline">Nueva Venta</span>
@@ -485,6 +494,17 @@ export function OrderHistoryPage() {
               <NuevaVentaPage onClose={() => { setNuevaVentaOpen(false); fetchData(); }} />
             </motion.div>
           </>
+        )}
+      </AnimatePresence>
+
+      {/* Factura Directa */}
+      <AnimatePresence>
+        {directInvoiceOpen && (
+          <DirectInvoiceModal
+            isOpen={directInvoiceOpen}
+            onClose={() => setDirectInvoiceOpen(false)}
+            onCreated={() => { setDirectInvoiceOpen(false); fetchData(); }}
+          />
         )}
       </AnimatePresence>
     </div>
